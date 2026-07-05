@@ -2,8 +2,29 @@
 --query for loading the cleaned data from bronze layer to silver layer
 -- New query with above sub queries
 
+
+ USE DataWarehouse
+
+    EXEC silver.load_silver;
+
 CREATE OR ALTER PROCEDURE silver.load_silver AS
 BEGIN
+      DECLARE @start_time DATETIME ,@end_time DATETIME ,@batch_start_time DATETIME ,@batch_end_time DATETIME;
+      
+BEGIN TRY
+ SET @batch_start_time = GETDATE();
+    PRINT '=================================================================================================='
+    PRINT 'Loading Silver Layer'
+    PRINT '=================================================================================================='
+
+
+    SET @batch_start_time = GETDATE();
+    PRINT '=================================================================================================='
+    PRINT 'Loading CRM  Tables ';
+    PRINT '=================================================================================================='
+
+     --Loading silver.crm_cust_info
+     SET @start_time = GETDATE();
 PRINT ' >> Truncating Table : silver.crm_cust_info'
 TRUNCATE TABLE silver.crm_cust_info;
 PRINT '>> Inserting DATA INTO : silver.crm_cust_info'
@@ -41,7 +62,13 @@ FROM (
     FROM bronze.crm_cust_info
 ) t
 WHERE flag_last = 1;
+SET @end_time = GETDATE();
+
+PRINT ' LOAD DURATION :' + CAST(DATEDIFF(SECOND,@start_time , @end_time) AS NVARCHAR) + 'seconds'
+PRINT '>>--------------------'
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+SET @start_time = GETDATE();
 PRINT ' >> Truncating Table : silver.crm_prd_info'
 TRUNCATE TABLE silver.crm_prd_info;
 PRINT '>> Inserting Data Into : silver.crm_prd_info'
@@ -76,8 +103,12 @@ SELECT
        LEAD(prd_start_dt) OVER (PARTITION BY prd_key ORDER BY prd_start_dt)-1  AS prd_end_dt
 FROM bronze.crm_prd_info 
 ;
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SET @end_time = GETDATE();
 
+PRINT ' LOAD DURATION :' + CAST(DATEDIFF(SECOND,@start_time , @end_time) AS NVARCHAR) + 'seconds'
+PRINT '>>--------------------'
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SET @start_time = GETDATE();
 PRINT ' >> Truncating Table : silver.crm_sales_details'
 TRUNCATE TABLE silver.crm_sales_details;
 PRINT '>> Inserting DATA INTO : silver.crm_sales_details'
@@ -113,8 +144,14 @@ ELSE sls_price
 END AS sls_price
 
 FROM bronze.crm_sales_details;
+SET @end_time = GETDATE();
+
+PRINT ' LOAD DURATION :' + CAST(DATEDIFF(SECOND,@start_time , @end_time) AS NVARCHAR) + 'seconds'
+PRINT '>>--------------------'
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+SET @start_time = GETDATE();
 PRINT ' >> Truncating Table : silver.erp_cust_az12'
 TRUNCATE TABLE silver.erp_cust_az12;
 PRINT' >> Inserting DATA INTO : silver.erp_cust_az12'
@@ -133,10 +170,16 @@ CASE WHEN UPPER(TRIM(gen)) IN ('F' , 'FEMALE') THEN 'Female'
      ELSE 'N/A'
 END AS gen
 FROM bronze.erp_cust_az12;
+SET @end_time = GETDATE();
 
+PRINT ' LOAD DURATION :' + CAST(DATEDIFF(SECOND,@start_time , @end_time) AS NVARCHAR) + 'seconds'
+PRINT '>>--------------------'
 
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+SET @start_time = GETDATE();
 PRINT ' >> Truncating TAble : silver.erp_loc_a101'
 TRUNCATE TABLE silver.erp_loc_a101;
 PRINT '>> Inserting DATA INTO : silver.erp_loc_a101'
@@ -152,6 +195,7 @@ END AS cntry
 FROM bronze.erp_loc_a101;
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+SET @start_time = GETDATE();
 PRINT ' >> Truncating TAble : silver.erp_px_cat_g1v2'
 TRUNCATE TABLE silver.erp_px_cat_g1v2;
 PRINT '>> Inserting DATA INTO : silver.erp_px_cat_g1v2'
@@ -163,8 +207,26 @@ cat,
 subcat,
 maintenance
 FROM bronze.erp_px_cat_g1v2;
-END
+SET @end_time = GETDATE();
 
+PRINT ' LOAD DURATION :' + CAST(DATEDIFF(SECOND,@start_time , @end_time) AS NVARCHAR) + 'seconds'
+PRINT '>>--------------------'
+----------------------------------------------------------------------------------------------------------------------------------------
+SET @batch_end_time = GETDATE();
+PRINT'=============================================================='
+PRINT 'Loading Silver Layer Is Comleted';
+PRINT ' - Total Load Duration : ' + CAST(DATEDIFF(SECOND,@batch_start_time , @batch_end_time)AS NVARCHAR) + 'seconds'
+END TRY
+BEGIN CATCH 
+      PRINT '=================================================================================='
+      PRINT 'ERROR OCCURED DURING BRONZE LAYER '
+      PRINT 'Error Message ' + ERROR_MESSAGE ()
+      PRINT 'Error Message ' + CAST(ERROR_NUMBER() AS VARCHAR);
+      PRINT 'Error Message ' + CAST(ERROR_STATE() AS VARCHAR);
+      PRINT '=================================================================================='
+   END CATCH
+
+END
 
 
 
